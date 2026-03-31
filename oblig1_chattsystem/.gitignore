@@ -1,0 +1,26 @@
+# Build
+build/
+cmake-build-*/
+out/
+
+# Python venv (if used for tooling)
+.venv/
+venv/
+__pycache__/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Compiled / CMake
+*.o
+*.a
+*.so
+compile_commands.json
+CMakeUserPresets.json
