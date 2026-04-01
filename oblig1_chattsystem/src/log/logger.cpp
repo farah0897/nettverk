@@ -133,8 +133,27 @@ void Logger::parsing_error(std::string_view context) {
 
 void Logger::socket_error(std::string_view context, int err_no) {
     std::ostringstream o;
-    o << "socket error: " << context << " — errno=" << err_no << " (" << errno_string(err_no) << ")";
+    o << "socket error: " << context << ", errno=" << err_no << " (" << errno_string(err_no) << ")";
     error(o.str());
+}
+
+void Logger::dropped_malformed_datagram(std::string_view reason, std::size_t byte_count) {
+    std::ostringstream o;
+    o << "dropped datagram: " << reason << " bytes=" << byte_count;
+    warn(o.str());
+}
+
+void Logger::network_recoverable(std::string_view context, int err_no) {
+    std::ostringstream o;
+    o << "network (recoverable): " << context << " errno=" << err_no << " (" << errno_string(err_no)
+      << ")";
+    warn(o.str());
+}
+
+void Logger::shutdown_step(std::string_view step) {
+    std::ostringstream o;
+    o << "shutdown: " << step;
+    info(o.str());
 }
 
 }  // namespace chat

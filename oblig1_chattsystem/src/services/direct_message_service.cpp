@@ -5,6 +5,7 @@
 #include "chat/protocol/secp.hpp"
 #include "chat/protocol/limits.hpp"
 #include "chat/protocol/ports.hpp"
+#include "chat/protocol/secure_invite.hpp"
 #include "chat/state/user_directory.hpp"
 #include "chat/util/string_trim.hpp"
 
@@ -231,6 +232,9 @@ bool DirectMessageService::send_private_chat(const std::string& session_id, cons
 void DirectMessageService::on_invite(const SecpMessage& msg, const sockaddr_in& from) {
     // INVITE|room-name|owner|CLOSED;to=invitedUser
     if (msg.type != SecpType::Invite) {
+        return;
+    }
+    if (is_secure_tcp_invite_payload(msg.payload)) {
         return;
     }
     if (msg.room.empty() || msg.room == "-" || msg.username.empty() || msg.payload.empty()) {

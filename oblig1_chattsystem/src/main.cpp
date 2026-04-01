@@ -7,10 +7,14 @@
 #include "chat/net/errno_util.hpp"
 #include "chat/net/udp_socket.hpp"
 #include "chat/protocol/ports.hpp"
+#include "chat/protocol/limits.hpp"
+#include "chat/protocol/secp.hpp"
 #include "chat/services/discovery_service.hpp"
 #include "chat/services/direct_message_service.hpp"
 #include "chat/services/group_room_coordinator.hpp"
+#include "chat/services/guaranteed_open_room_service.hpp"
 #include "chat/services/lobby_service.hpp"
+#include "chat/services/secure_room_service.hpp"
 #include "chat/state/user_directory.hpp"
 #include "chat/util/string_trim.hpp"
 
@@ -32,6 +36,11 @@ int main(int argc, char** argv) {
     trim_in_place(username);
     if (username.empty()) {
         std::cerr << "Brukernavn kan ikke være tomt.\n";
+        return 1;
+    }
+    if (!is_valid_username_field(username)) {
+        std::cerr << "Ugyldig brukernavn (maks " << kMaxUsernameBytes
+                  << " tegn, UTF-8, ikke | eller linjeskift).\n";
         return 1;
     }
 
@@ -82,6 +91,20 @@ int main(int argc, char** argv) {
         std::cout << "[Gruppe " << room_id << "] " << sender << ": " << text << '\n' << std::flush;
     });
 
+    GuaranteedOpenRoomService guaranteed_open{udp_sock, groups, username};
+    guaranteed_open.set_on_tcp_room_message([](const std::string& room_id, const std::string& sender,
+                                                const std::string& text) {
+        std::lock_guard lock{chat::cout_mutex};
+        std::cout << "[TCP-rom " << room_id << "] " << sender << ": " << text << '\n' << std::flush;
+    });
+
+    SecureRoomService secure_room{udp_sock, users, username};
+    secure_room.set_on_secure_message([](const std::string& session_id, const std::string& sender,
+                                         const std::string& text) {
+        std::lock_guard lock{chat::cout_mutex};
+        std::cout << "[Sikkert rom " << session_id << "] " << sender << ": " << text << '\n' << std::flush;
+    });
+
     DirectMessageService direct{udp_sock, users, username};
     direct.set_on_status([](const std::string& msg) {
         std::lock_guard lock{chat::cout_mutex};
@@ -96,7 +119,8 @@ int main(int argc, char** argv) {
     {
         std::lock_guard lock{chat::cout_mutex};
         std::cout << "Logget inn som \"" << username << "\" med IP " << format_ipv4(local_ip) << "\n";
-        std::cout << "Porter: UDP " << kUdpPort << " (SECP), TCP " << kTcpPort << " (ikke i bruk).\n";
+        std::cout << "Porter: UDP " << kUdpPort << " (SECP), TCP " << kTcpPort
+                  << " (åpne garanterte rom), TCP " << kTcpSecurePort << " (sikre rom).\n";
         std::cout << "Meldinger fra nett blandes i menyen.\n\n";
     }
 
@@ -110,8 +134,8 @@ int main(int argc, char** argv) {
     InterruptibleSleep sleeper;
 
     std::thread receiver{[&]() {
-        run_receive_multiplex_loop(running, udp_sock, discovery, lobby, groups, direct,
-                                   std::chrono::milliseconds{500});
+        run_receive_multiplex_loop(running, udp_sock, discovery, lobby, groups, direct, &guaranteed_open,
+                                   &secure_room, std::chrono::milliseconds{500});
     }};
 
     std::thread heartbeat{[&]() {
@@ -132,22 +156,30 @@ int main(int argc, char** argv) {
                 break;
             }
             groups.broadcast_owned_advert();
+            guaranteed_open.broadcast_owned_advert();
         }
     }};
 
-    run_text_menu_loop(username, users, lobby, groups, direct);
+    run_text_menu_loop(username, users, lobby, groups, direct, guaranteed_open, secure_room);
 
     running = false;
     sleeper.request_stop();
+    Logger::instance().shutdown_step("stopping background threads, closing sessions");
+    secure_room.leave_secure_session();
+    guaranteed_open.stop_hosting();
+    guaranteed_open.leave_tcp_room();
     udp_sock.close();
     groups.leave_room();
     if (receiver.joinable()) {
+        Logger::instance().shutdown_step("join receiver thread");
         receiver.join();
     }
     if (heartbeat.joinable()) {
+        Logger::instance().shutdown_step("join heartbeat thread");
         heartbeat.join();
     }
     if (group_advert_loop.joinable()) {
+        Logger::instance().shutdown_step("join advert thread");
         group_advert_loop.join();
     }
 

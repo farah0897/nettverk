@@ -1,24 +1,6 @@
-# TESTING_GUIDE.md — svært omfattende testguide (studentnivå)
+# Testguide
 
-Dette dokumentet er laget for at du skal kunne **teste hele prosjektet systematisk**, med **konkrete kommandoer du kan kopiere/lim(e)**, og med forklaring av **hva du forventer å se** i hver test. Målet er at du kan forstå og verifisere løsningen “innenfra” — som om du hadde skrevet den selv.
-
-Prosjektet følger **RFC USNChat01 / SECP**: alle UDP-meldinger sendes som **UTF-8 tekst** på formen
-
-`TYPE|ROOM|USERNAME|PAYLOAD\n`
-
-og **all UDP-trafikk går på port `50000`**.
-
-- **Discovery/presence (broadcast)**: `PRESENCE|-|username|ip`
-- **Globalt rom (broadcast)**: `CHAT|USN Chat|username|message`
-- **Åpne rom (annonser)**: `ROOM_ANNOUNCE|room-name|owner|OPEN`
-- **Åpne rom (chat)**: `CHAT|room-name|username|message` via multicast til `239.0.0.1:50000` (TTL=1), filtrert på `ROOM`
-- **Lukkede rom (invitasjon + chat)**: `INVITE|room-name|owner|CLOSED;to=invitedUser` og `CHAT|room-name|...` via unicast
-
-Kilde for disse faktaene:
-
-- `CMakeLists.txt` bygger binæren `chatapp`
-- `src/main.cpp` printer porter ved oppstart og starter tråder
-- `src/app/text_menu.cpp` definerer alle menyvalg og inputvalidering
+Manuell testing med forventet oppførsel per steg. SECP: `TYPE|ROOM|USERNAME|PAYLOAD\n` på UDP 50000 (UTF-8). Eksempler: `PRESENCE` på broadcast; `CHAT|USN Chat|...` (lobby); `ROOM_ANNOUNCE` + multicast-chat til `239.0.0.1:50000`; lukket rom med `INVITE`/`CHAT` unicast. Oppstart, porter og meny: `main.cpp`, `text_menu.cpp`. Bygg: `CMakeLists.txt` → `chatapp`.
 
 ---
 
@@ -57,11 +39,11 @@ For **pakkefangst med GUI og OSI-visning** (se Testpakke 8):
 sudo apt install -y wireshark
 ```
 
-> På noen systemer heter pakken `wireshark-qt`. Under installasjon kan du bli spurt om å la ikke-root brukere fange pakker — da må brukeren være i gruppen `wireshark`, eller du kjører Wireshark med `sudo wireshark` (enkelt på lab, mindre ideelt på delt PC).
+> `wireshark-qt` finnes på noen systemer. Ikke-root: bruker i gruppen `wireshark`, eller `sudo wireshark`.
 
 ---
 
-## Bygging (build) — “start her”
+## Bygg
 
 Kjør disse kommandoene i prosjektroten (`oblig1_chattsystem`).
 
@@ -140,8 +122,8 @@ De fleste testene under antar at du har 2–3 terminalvinduer.
 - Linje som viser at du er logget inn og lokal IP:
   - `Logget inn som "Farah" med IP X.Y.Z.W`
 - Linje som viser porter:
-  - `Porter: UDP 50000 (SECP), TCP 50001 (ikke i bruk).`
-- Du får menyen med valg 1–12.
+  - `Porter: UDP 50000 (SECP), TCP 50001 (garantert rom), TCP 50002 (sikre rom).`
+- Menyvalg 1-23 (23 = avslutt).
 
 **Viktig å forstå mens du tester:**
 
@@ -174,12 +156,12 @@ Disse testene verifiserer at programmet tåler vanlig feilbruk uten å krasje.
 
 **Steg i programmet:**
 
-- Når du ser `Velg (1–12):`, skriv:
+- Når meny vises, skriv:
   - `hei`
 
 **Forventet:**
 
-- `Ugyldig valg. Skriv heltall 1–12.`
+- `Ugyldig valg. Skriv heltall 1–23 (23 = avslutt).`
 - Programmet fortsetter (ingen crash).
 
 **Hva det tester:**
@@ -227,7 +209,7 @@ Målet er å verifisere at klientene oppdager hverandre og at katalogen oppdater
 **Forventet:**
 
 - Farah ser Ole:
-  - `Ole @ <ipv4> — sist sett for <n> s siden`
+  - `Ole @ <ipv4>, sist sett for <n> s siden`
 
 **Gjenta i Ole-terminalen** og forvent å se Farah.
 
@@ -334,7 +316,7 @@ Dette er todelt:
 **Forventet (Ole):**
 
 - Ser en linje som:
-  - `ID: <id> — «Gruppe1» @ 239.255.42.X:42YYY`
+  - `ID: <id>, «Gruppe1» @ 239.255.42.X:42YYY`
 
 **Hva det tester:**
 
@@ -547,15 +529,15 @@ sudo tcpdump -ni any udp port 50000
 
 ---
 
-## Testpakke 8: Wireshark — dokumentere meldinger og OSI-lag
+## Testpakke 8: Wireshark og OSI-lag
 
-Målet er å **vise faktisk nettverkstrafikk** fra chatklienten, **dokumentere innholdet** (SECP-linjer) og å **mappe feltene du ser i Wireshark til OSI-modellen** — typisk krav i rapporter om nettverk.
+Målet er å **vise faktisk nettverkstrafikk** fra chatklienten, **dokumentere innholdet** (SECP-linjer) og å **mappe feltene du ser i Wireshark til OSI-modellen**, typisk krav i rapporter om nettverk.
 
 ### Forberedelse
 
 1. Installer Wireshark (se avsnittet *Pakker du trenger* over).
 2. Velg **riktig grensesnitt**:
-   - **To klienter på samme maskin:** fang på `lo` (loopback). Mye broadcast/multicast oppfører seg annerledes enn på LAN; du kan likevel ofte se **unicast** og noe lokal trafikk — test og noter hva du faktisk fanger.
+   - **To klienter på samme maskin:** fang på `lo` (loopback). Mye broadcast/multicast oppfører seg annerledes enn på LAN; du kan likevel ofte se **unicast** og noe lokal trafikk, test og noter hva du faktisk fanger.
    - **To maskiner på samme LAN:** fang på det aktive Ethernet- eller WiFi-grensesnittet (f.eks. `eth0`, `enp0s3`, `wlp…`).
 
 ### Test W1: Start fangst med filter på SECP-porten
@@ -576,7 +558,7 @@ Målet er å **vise faktisk nettverkstrafikk** fra chatklienten, **dokumentere i
 
 ### Test W2: Hva du ser i Wireshark vs. OSI-lag (dokumentasjon i rapport)
 
-Wireshark viser protokoller som **kapslinger** av hverandre. Slik kan du forklare det i en oppgave (forenklet modell — OSI er pedagogisk; TCP/IP brukes ofte parallelt):
+Wireshark viser protokoller som **kapslinger** av hverandre. Slik kan du forklare det i en oppgave (forenklet modell, OSI er pedagogisk; TCP/IP brukes ofte parallelt):
 
 | OSI (pedagogisk) | Hva du typisk klikker på i Wireshark | Hva det betyr for dette prosjektet |
 |------------------|----------------------------------------|-------------------------------------|
@@ -584,7 +566,7 @@ Wireshark viser protokoller som **kapslinger** av hverandre. Slik kan du forklar
 | **4 Transport** | **UDP** | Kilde-/destinasjonsport **50000**, lengde, checksum. Her “leverer” OS UDP-nyttelasten til applikasjonen. |
 | **3 Nettverk** | **Internet Protocol Version 4** | Kilde- og destinasjons-**IP** (unicast, broadcast `255.255.255.255` eller subnett-broadcast, eller multicast-adresse f.eks. **239.0.0.1** for grupperom). TTL, lengde. |
 | **2 Datalink** | **Ethernet II** (eller WiFi-frame) | **MAC-adresser** (kilde/dest). EtherType `0x0800` = IPv4. |
-| **1 Fysisk** | Ikke som eget lag i .pcap-filen | Mediet (kabel/WiFi) — i rapport: kort nevnt som underlag for bitene på ledningen/luften. |
+| **1 Fysisk** | Ikke som eget lag i .pcap-filen | Mediet (kabel/WiFi), i rapport: kort nevnt som underlag for bitene på ledningen/luften. |
 
 **Konkrete korrelasjoner mot prosjektet:**
 
@@ -594,11 +576,11 @@ Wireshark viser protokoller som **kapslinger** av hverandre. Slik kan du forklar
 
 ### Test W3: Display filter og eksport (rapportvedlegg)
 
-**Display filter** (etter at pakker er fanget inn) — eksempler:
+**Display filter** (etter at pakker er fanget inn), eksempler:
 
-- `udp.port == 50000` — all SECP-relatert UDP på porten.
-- `ip.dst == 239.0.0.1` — multicast til prosjektets gruppeadresse.
-- `udp contains "CHAT"` — tekstlig søk i nyttelast (nyttig for å plukke ut chat-linjer; ikke en full protokollvalidator).
+- `udp.port == 50000`: all SECP-relatert UDP på porten.
+- `ip.dst == 239.0.0.1`: multicast til prosjektets gruppeadresse.
+- `udp contains "CHAT"`: tekstlig søk i nyttelast (nyttig for å plukke ut chat-linjer; ikke en full protokollvalidator).
 
 **Dokumentasjon:**
 
@@ -619,7 +601,7 @@ Avslutt med Ctrl+C, åpne `chat_secp.pcap` i Wireshark. Da kan du skrive at du h
 
 - **Ingen pakker på loopback** for broadcast: test på ekte LAN eller beskriv begrensningen i rapporten.
 - **Wireshark uten rettigheter:** bruk `sudo wireshark` eller medlemskap i `wireshark`-gruppen.
-- **Feil grensesnitt:** du fanger “tomt” selv om appen sender — bytt til `lo` vs. LAN-grensesnitt.
+- **Feil grensesnitt:** du fanger “tomt” selv om appen sender, bytt til `lo` vs. LAN-grensesnitt.
 
 ---
 
@@ -655,5 +637,5 @@ Hvis du bare vil verifisere alt raskt:
 - Farah: `3` opprett gruppe → Ole: `4` ser rom → Ole: `5` join → Farah: `6` send gruppe → Ole mottar
 - Farah: `8` inviter Ole → Ole: `9` aksepter → Farah: `10` send privat → Ole mottar
 - Begge: `12` avslutt rent
-- (Valgfritt rapport:) Testpakke 8 — Wireshark med `udp port 50000`, skjermdump av lag (Ethernet → IP → UDP → data) og ev. `.pcapng`-vedlegg
+- (Valgfritt rapport:) Testpakke 8, Wireshark med `udp port 50000`, skjermdump av lag (Ethernet → IP → UDP → data) og ev. `.pcapng`-vedlegg
 

@@ -1,5 +1,7 @@
 #include "chat/net/udp_socket.hpp"
 
+#include "chat/log/logger.hpp"
+
 #include <arpa/inet.h>
 #include <cerrno>
 #include <limits>
@@ -119,8 +121,15 @@ bool UdpSocket::send_to(std::span<const std::byte> data, const sockaddr_in& dest
         last_errno_ = errno;
         return false;
     }
+    if (r != static_cast<ssize_t>(n)) {
+        last_errno_ = 0;
+        Logger::instance().warn(
+            std::string{"UDP sendto partial: sent "} + std::to_string(r) + " of " + std::to_string(n) +
+            " bytes");
+        return false;
+    }
     last_errno_ = 0;
-    return r == static_cast<ssize_t>(n);
+    return true;
 }
 
 bool UdpSocket::recv_from(std::span<std::byte> buffer, sockaddr_in& from, std::size_t& out_len) {

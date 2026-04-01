@@ -1,6 +1,6 @@
-# CODE_WALKTHROUGH.md — teknisk studieguide (chattsystem)
+# CODE_WALKTHROUGH (chattsystem)
 
-Dette dokumentet er skrevet som en **studieguide** for deg som student: målet er at du skal kunne lese koden i dette prosjektet og forstå den “innenfra” — som om du hadde skrevet den selv. Jeg forklarer både **hva** som skjer, **hvorfor** det er designet slik, og hvordan det mapper direkte til oppgaveteksten (broadcast/multicast/unicast, robusthet, inputvalidering og buffer overflow prevention).
+Teknisk gjennomgang av koden: hva som skjer hvor, og sammenheng med oppgaven (UDP broadcast/multicast/unicast, validering, buffergrenser).
 
 > Protokollnote: Kodebasen er nå refaktorert til å følge **RFC USNChat01 / SECP**. Det betyr at meldinger er **UTF-8 tekst** på formen `TYPE|ROOM|USERNAME|PAYLOAD\n`, og at **all UDP-trafikk går på port 50000**.
 
@@ -106,7 +106,7 @@ En praktisk modul-inndeling (slik du bør tenke om kodebasen):
 
 ### Arkitekturen i én setning
 
-Programmet er en **event-drevet UDP-klient** med en **mottakstråd** (poll/recv), flere **periodiske tråder** (heartbeat og gruppeannonser), og en **hovedtråd** som kjører CLI-menyen — med felles protokoll-lag og defensiv parsing.
+Programmet er en **event-drevet UDP-klient** med en **mottakstråd** (poll/recv), flere **periodiske tråder** (heartbeat og gruppeannonser), og en **hovedtråd** som kjører CLI-menyen  -  med felles protokoll-lag og defensiv parsing.
 
 ### Hvilke moduler som har ansvar for hva
 
@@ -282,10 +282,10 @@ Jeg går først gjennom “toppen” (main + app), så protokoll/nett/state, så
 
 ### Filer som finnes, men ikke er “fullt i bruk”
 
-- `include/chat/app/application.hpp` (`ChatApplication`) — **ingen `.cpp**`, ikke brukt.
-- `include/chat/app/cli_controller.hpp` (`CliController`) — **ingen `.cpp**`, ikke brukt.
-- `include/chat/net/poll_multiplexer.hpp` (`PollMultiplexer`) — **ingen `.cpp**`, ikke brukt.
-- `include/chat/net/socket_address.hpp` (`SocketAddress`) — **ingen `.cpp**`, ikke brukt.
+- `include/chat/app/application.hpp` (`ChatApplication`)  -  **ingen `.cpp**`, ikke brukt.
+- `include/chat/app/cli_controller.hpp` (`CliController`)  -  **ingen `.cpp**`, ikke brukt.
+- `include/chat/net/poll_multiplexer.hpp` (`PollMultiplexer`)  -  **ingen `.cpp**`, ikke brukt.
+- `include/chat/net/socket_address.hpp` (`SocketAddress`)  -  **ingen `.cpp**`, ikke brukt.
 
 ---
 

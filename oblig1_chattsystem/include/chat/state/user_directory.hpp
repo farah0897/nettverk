@@ -34,7 +34,7 @@ public:
 
     std::optional<sockaddr_in> find_address(const std::string& username) const;
 
-    /// Snapshot til CLI (uten låsing utenfor — kopi under mutex).
+    /// Kopi under mutex; trygg å lese fra CLI.
     std::vector<PeerListEntry> snapshot_peers() const;
 
 private:

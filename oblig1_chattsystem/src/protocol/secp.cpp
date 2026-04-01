@@ -7,7 +7,7 @@
 
 namespace chat {
 
-namespace {
+namespace detail {
 
 bool valid_utf8(std::string_view s) {
     // Minimal, strict UTF-8 validation (rejects overlongs and surrogates).
@@ -117,7 +117,11 @@ bool is_payload_ok(std::string_view p) {
     return !contains_pipe_or_newline(p) && valid_utf8(p);
 }
 
-}  // namespace
+}  // namespace detail
+
+bool is_valid_username_field(std::string_view u) {
+    return detail::is_username_ok(u);
+}
 
 std::string_view secp_type_name(SecpType t) {
     switch (t) {
@@ -155,7 +159,7 @@ std::string build_secp_line(SecpType type, std::string_view room, std::string_vi
     if (type == SecpType::Unknown) {
         return {};
     }
-    if (!is_room_ok(room) || !is_username_ok(username) || !is_payload_ok(payload)) {
+    if (!detail::is_room_ok(room) || !detail::is_username_ok(username) || !detail::is_payload_ok(payload)) {
         return {};
     }
     std::string out;
@@ -207,7 +211,8 @@ std::optional<SecpMessage> parse_secp_line(std::string_view line) {
     if (t == SecpType::Unknown) {
         return std::nullopt;
     }
-    if (!is_room_ok(parts[1]) || !is_username_ok(parts[2]) || !is_payload_ok(parts[3])) {
+    if (!detail::is_room_ok(parts[1]) || !detail::is_username_ok(parts[2]) ||
+        !detail::is_payload_ok(parts[3])) {
         return std::nullopt;
     }
 

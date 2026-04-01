@@ -35,9 +35,9 @@ Rapporten beskriver et chatprogram for kommandolinjen, skrevet i C++, som snakke
 
 ## 2. Innledning
 
-Mange programmer bruker TCP når de trenger pålitelig levering. I denne oppgaven brukes derimot UDP med vilje: det er enkelt å komme i gang med, har lav overhead, og støtter både kringkasting til alle på subnettet og sending til en multicast-gruppe. Samtidig må man leve med at pakker kan forsvinne eller komme i «feil» rekkefølge, og at alt som kommer inn over nettet må sjekkes nøye — man kan ikke stole blindt på innholdet.
+Mange programmer bruker TCP når de trenger pålitelig levering. I denne oppgaven brukes derimot UDP med vilje: det er enkelt å komme i gang med, har lav overhead, og støtter både kringkasting til alle på subnettet og sending til en multicast-gruppe. Samtidig må man leve med at pakker kan forsvinne eller komme i «feil» rekkefølge, og at alt som kommer inn over nettet må sjekkes nøye, man kan ikke stole blindt på innholdet.
 
-Oppgaven er å lage et lite chattsystem for LAN uten sentral server, med vanlig socket-programmering som på øvingene — ikke ferdige GUI-rammeverk. Det skal støtte fire hovedfunksjoner: å vise hvem som er til stede, åpent fellesrom, åpne grupperom og lukkede to-personersrom. I tillegg kreves fornuftig feilhåndtering, sjekk av brukerinput og begrensning av hvor mye data programmet godtar om gangen, slik at buffere ikke kan overfyldes. Leveransen skal dokumenteres, testes (også sammen med andre), og trafikken skal sees på i Wireshark med kobling til OSI-modellen.
+Oppgaven er å lage et lite chattsystem for LAN uten sentral server, med vanlig socket-programmering som på øvingene, ikke ferdige GUI-rammeverk. Det skal støtte fire hovedfunksjoner: å vise hvem som er til stede, åpent fellesrom, åpne grupperom og lukkede to-personersrom. I tillegg kreves fornuftig feilhåndtering, sjekk av brukerinput og begrensning av hvor mye data programmet godtar om gangen, slik at buffere ikke kan overfyldes. Leveransen skal dokumenteres, testes (også sammen med andre), og trafikken skal sees på i Wireshark med kobling til OSI-modellen.
 
 Rapporten følger denne rekkefølgen: først problem og mål, deretter nødvendig bakgrunn, så selve meldingsformatet (SECP), deretter implementasjon, robusthet, testing og Wireshark, og til slutt sikkerhet, diskusjon og konklusjon.
 
@@ -49,7 +49,7 @@ Rapporten følger denne rekkefølgen: først problem og mål, deretter nødvendi
 
 Uten en felles server må hver klient finne ut hvem som finnes på nettet, hvor felles «kanaler» er, og hvordan mer private samtaler kan startes. Oppgaven kan formuleres slik:
 
-> Hvordan kan flere uavhengige programmer utveksle tekst over UDP slik at alle kan oppdage hverandre og chatte åpent, at grupper kan skilles ut med multicast, og at private rom bare når de som er invitert — samtidig som systemet tåler nettverksfeil, feil bruk fra tastaturet og data som ikke er som forventet?
+> Hvordan kan flere uavhengige programmer utveksle tekst over UDP slik at alle kan oppdage hverandre og chatte åpent, at grupper kan skilles ut med multicast, og at private rom bare når de som er invitert, samtidig som systemet tåler nettverksfeil, feil bruk fra tastaturet og data som ikke er som forventet?
 
 ### 3.2 Funksjonelle mål (oppgavetekst)
 
@@ -62,7 +62,7 @@ Uten en felles server må hver klient finne ut hvem som finnes på nettet, hvor 
 | **4. 1–1-rom**        | Lukket rom: invitasjon sendes direkte til én motpart; bare de to deltar; chat går som unicast.                                       |
 
 
-Oppgaveteksten krever også at viktige meldinger (som invitasjoner og romannonser) gjentas med jevne mellomrom — typisk hvert 5.–10. sekund — slik at noen som starter programmet senere, fortsatt får med seg informasjonen. I løsningen gjentas blant annet presence, romannonser og ventende invitasjoner innenfor et slikt intervall.
+Oppgaveteksten krever også at viktige meldinger (som invitasjoner og romannonser) gjentas med jevne mellomrom, typisk hvert 5. til 10. sekund, slik at noen som starter programmet senere, fortsatt får med seg informasjonen. I løsningen gjentas blant annet presence, romannonser og ventende invitasjoner innenfor et slikt intervall.
 
 ### 3.3 Ikke-funksjonelle mål
 
@@ -76,7 +76,7 @@ Oppgaveteksten krever også at viktige meldinger (som invitasjoner og romannonse
 
 ### 4.1 UDP og best-effort
 
-UDP gir ingen garanti for at en pakke kommer frem eller kommer i samme rekkefølge som den ble sendt. Derfor brukes i praksis gjentatte «jeg er her»-meldinger, tidsavbrudd der det trengs, og forsiktig tolking av alt som mottas — som om det kan være ufullstendig eller feil.
+UDP gir ingen garanti for at en pakke kommer frem eller kommer i samme rekkefølge som den ble sendt. Derfor brukes i praksis gjentatte «jeg er her»-meldinger, tidsavbrudd der det trengs, og forsiktig tolking av alt som mottas, som om det kan være ufullstendig eller feil.
 
 ### 4.2 Broadcast, multicast og unicast i denne oppgaven
 
@@ -86,17 +86,17 @@ UDP gir ingen garanti for at en pakke kommer frem eller kommer i samme rekkeføl
 
 ### 4.3 OSI-modellen (relevant for Wireshark)
 
-Når trafikken inspiseres i Wireshark, er det naturlig å knytte det man ser til lag i OSI-modellen: Ethernet (lag 2), IPv4 (lag 3), UDP (lag 4), og selve chatteksten som ligger inni UDP-datagrammet — altså applikasjonslaget (lag 7) i denne sammenhengen.
+Når trafikken inspiseres i Wireshark, er det naturlig å knytte det man ser til lag i OSI-modellen: Ethernet (lag 2), IPv4 (lag 3), UDP (lag 4), og selve chatteksten som ligger inni UDP-datagrammet, altså applikasjonslaget (lag 7) i denne sammenhengen.
 
 ---
 
 ## 5. Beskrivelse av kommunikasjonsprotokollen (RFC USNChat01 / SECP)
 
-Dette kapitlet handler om hvordan meldingene er bygd opp — altså applikasjonslaget i RFC USNChat01. I koden kalles det praktisk talt SECP (*Simple Educational Chat Protocol*). Implementasjonen ligger i `include/chat/protocol/secp.hpp` og `src/protocol/secp.cpp`.
+Dette kapitlet handler om hvordan meldingene er bygd opp, altså applikasjonslaget i RFC USNChat01. I koden kalles det praktisk talt SECP (*Simple Educational Chat Protocol*). Implementasjonen ligger i `include/chat/protocol/secp.hpp` og `src/protocol/secp.cpp`.
 
 ### 5.1 Formål og avgrensing
 
-Dokumentet sier hvordan ulike chat-klienter skal formatere tekstlinjer slik at de forstår hverandre i samme LAN. Alt er tekstbasert: hver logiske melding er én linje som slutter med linjeskift. Det spiller ingen rolle for selve linjeformatet om pakken sendes med broadcast, multicast eller unicast — det er et valg man tar ut fra romtype og hvem som skal nås.
+Dokumentet sier hvordan ulike chat-klienter skal formatere tekstlinjer slik at de forstår hverandre i samme LAN. Alt er tekstbasert: hver logiske melding er én linje som slutter med linjeskift. Det spiller ingen rolle for selve linjeformatet om pakken sendes med broadcast, multicast eller unicast, det er et valg man tar ut fra romtype og hvem som skal nås.
 
 RFC nevner også TCP og «garanterte rom» på port 50001. I denne obligatoriske leveransen er det bare UDP som er implementert; TCP-delen er ikke med, men nevnes her så rapporten stemmer med spesifikasjonen.
 
@@ -124,7 +124,7 @@ Teksten skal være gyldig UTF-8. Ingen av feltene skal inneholde `|` eller linje
 
 | Protokoll | Port      | Bruk i denne leveransen                             |
 | --------- | --------- | --------------------------------------------------- |
-| **UDP**   | **50000** | All SECP-trafikk — broadcast, multicast og unicast. |
+| **UDP**   | **50000** | All SECP-trafikk, broadcast, multicast og unicast. |
 | **TCP**   | **50001** | Nevnt i RFC for garanterte rom; **ikke brukt** her. |
 
 
@@ -163,11 +163,11 @@ I undervisningsøyemed kan flere åpne grupperom dele samme multicast-adresse. I
 
 Når programmet mottar eller skal sende en melding, må teksten være «på riktig form»: den skal bestå av fire deler skilt med strek (`|`), og verken brukernavn, romnavn eller selve meldingsteksten skal være for langt. Hele linjen får heller ikke overstige en fast maksgrense (1024 tegn), slik at ingen pakke kan fylle mer enn det programmet er forberedt på å ta imot. I tillegg sjekkes det at teksten er gyldig UTF-8, slik at rare eller ødelagte tegn ikke skaper uforutsigbar oppførsel.
 
-Prøver man å bygge en ugyldig melding (for kort, for langt, feil format), returnerer funksjonen som lager linjen et tomt resultat — da sendes **ingenting** ut på nettet. På mottakersiden forkastes linjer som ikke består sjekken, uten at programmet krasjer. Dette er måten oppgavens krav om **buffer overflow prevention** og **trygg håndtering av ukjente data** er løst på i praksis (se `secp.cpp`).
+Prøver man å bygge en ugyldig melding (for kort, for langt, feil format), returnerer funksjonen som lager linjen et tomt resultat, da sendes **ingenting** ut på nettet. På mottakersiden forkastes linjer som ikke består sjekken, uten at programmet krasjer. Dette er måten oppgavens krav om **buffer overflow prevention** og **trygg håndtering av ukjente data** er løst på i praksis (se `secp.cpp`).
 
 ### 5.7 Sammenheng med øvrig rapport
 
-**Kapittel 6** beskriver hvordan selve chat-programmet er bygd: hvilke deler som sender presence, fellesrom, grupperom og privat chat, og hvordan innkommende meldinger fordeles videre. **Kapittel 8** og **9** handler om hvordan dette er testet i bruk og bekreftet med Wireshark — altså at meldingene faktisk ser ut og oppfører seg som forventet i et reelt kjør.
+**Kapittel 6** beskriver hvordan selve chat-programmet er bygd: hvilke deler som sender presence, fellesrom, grupperom og privat chat, og hvordan innkommende meldinger fordeles videre. **Kapittel 8** og **9** handler om hvordan dette er testet i bruk og bekreftet med Wireshark, altså at meldingene faktisk ser ut og oppfører seg som forventet i et reelt kjør.
 
 ---
 
@@ -223,25 +223,25 @@ I et UDP-system er det en grunnleggende forutsetning at **ting kan feile**: pakk
 
 ### 7.1 Nettverksfeil
 
-Programmet må kunne lytte på **vanlig UDP** og — når brukeren deltar i et grupperom — på **multicast** samtidig. Løsningen er å la én mottakertråd vente på **flere kanaler** på én gang, slik at den ikke blokkerer på den ene mens den andre har meldinger. Det er et typisk mønster: nettverks-I/O samles på ett sted, mens meny og brukerinput kan stå stille uten å «miste» trafikk.
+Programmet må kunne lytte på **vanlig UDP** og på **multicast** når brukeren deltar i et grupperom, samtidig. Løsningen er å la én mottakertråd vente på **flere kanaler** på én gang, slik at den ikke blokkerer på den ene mens den andre har meldinger. Det er et typisk mønster: nettverks-I/O samles på ett sted, mens meny og brukerinput kan stå stille uten å «miste» trafikk.
 
-Når operativsystemet avbryter et ventekall (i POSIX markeres det ofte med feilkoden `EINTR`), behandles det som et **midlertidig avbrudd** — for eksempel fordi et signal ble levert — og forsøket gjentas. **Vedvarende** socket-feil logges, og mottak fortsetter der det lar seg gjøre, slik at én mislykket lesing ikke nødvendigvis avslutter hele klienten. Ved **kritiske** feil i selve ventelogikken kan mottakstråden stoppes kontrollert, mens hovedtråden fortsatt kan avslutte programmet ryddig (for eksempel når brukeren velger å gå ut).
+Når operativsystemet avbryter et ventekall (i POSIX markeres det ofte med feilkoden `EINTR`), behandles det som et **midlertidig avbrudd**, for eksempel fordi et signal ble levert, og forsøket gjentas. **Vedvarende** socket-feil logges, og mottak fortsetter der det lar seg gjøre, slik at én mislykket lesing ikke nødvendigvis avslutter hele klienten. Ved **kritiske** feil i selve ventelogikken kan mottakstråden stoppes kontrollert, mens hovedtråden fortsatt kan avslutte programmet ryddig (for eksempel når brukeren velger å gå ut).
 
 ### 7.2 Ugyldig input (CLI)
 
 Før noe sendes ut på nettet, sjekkes **tastaturinput** fra menyen: gyldig valg, meningsfull tekst der det trengs, og ingen tomme meldinger der de ikke gir mening. Det er en **første forsvarslinje** som reduserer unødvendig trafikk og gir forståelige feilmeldinger til brukeren.
 
-De **samme lengdegrensene** som SECP beskriver (jf. kapittel 5 — blant annet romnavn, brukernavn, chattekst og hele linjen), brukes også ved innlesing. Kan programmet likevel ikke bygge en gyldig protokollinje, sendes **ingenting**. Prinsippet samsvarer med mottakssiden: **ugyldig data skal ikke ut på ledningen**.
+De **samme lengdegrensene** som SECP beskriver (jf. kapittel 5, blant annet romnavn, brukernavn, chattekst og hele linjen), brukes også ved innlesing. Kan programmet likevel ikke bygge en gyldig protokollinje, sendes **ingenting**. Prinsippet samsvarer med mottakssiden: **ugyldig data skal ikke ut på ledningen**.
 
 ### 7.3 Ugyldige eller ondsinnede pakker
 
-UDP har ingen innebygd «tilgangskontroll»: i prinsippet kan hvem som helst på samme nett sende datagram til en åpen port. Innholdet kan derfor **ikke** tas for gitt — verken som korrekt formatert, komplett eller velmenende.
+UDP har ingen innebygd «tilgangskontroll»: i prinsippet kan hvem som helst på samme nett sende datagram til en åpen port. Innholdet kan derfor **ikke** tas for gitt, verken som korrekt formatert, komplett eller velmenende.
 
 Hver innkommende nyttelast behandles som **ukjent data** til den har bestått de samme reglene som SECP legger opp til: riktig oppdeling i felt, lovlige lengder, forbud mot visse tegn i felt (slik at formatet ikke kan «sprekke»), og gyldig tekstkoding (UTF-8). Linjer som feiler, **forkastes**; de når ikke logikken for presence, fellesrom, grupperom eller private invitasjoner. Meldingstyper klienten ikke kjenner, **ignoreres** fremfor å bli tolket etter beste gjetning. Målet er å unngå både krasj og feilaktig oppførsel når noe uventet dukker opp på nettet.
 
 ### 7.4 Buffer overflow prevention
 
-Oppgaven krever at programmet beskytter seg mot **buffer overflow** — at man ikke skriver forbi minnet som er satt av til én pakke. I praksis er dette løst på to måter som henger sammen.
+Oppgaven krever at programmet beskytter seg mot **buffer overflow**, at man ikke skriver forbi minnet som er satt av til én pakke. I praksis er dette løst på to måter som henger sammen.
 
 **Mottak:** Det reserveres et **fast, begrenset område** for én innkommende pakke (her maksimalt 1024 byte, i tråd med protokollens maksgrense). Operativsystemet leverer ikke mer enn dette i ett kall til det området, så selve lesingen kan ikke overskride bufferen.
 
@@ -320,7 +320,7 @@ Wireshark brukes til å **bekrefte** at trafikken er UDP mot port 50000, og at i
 
 ### 10.2 Implementerte tiltak
 
-Streng sjekk av SECP-linjer og feltlengder reduserer risiko for at programmet misbrukes til å oversvømme minnet eller krasje på uventet format. I privat modus sjekkes det i tillegg at meldinger som skal tilhøre en sesjon, faktisk matcher forventet avsender og rom — slik at ikke «alt» godtas uten videre.
+Streng sjekk av SECP-linjer og feltlengder reduserer risiko for at programmet misbrukes til å oversvømme minnet eller krasje på uventet format. I privat modus sjekkes det i tillegg at meldinger som skal tilhøre en sesjon, faktisk matcher forventet avsender og rom, slik at ikke «alt» godtas uten videre.
 
 ### 10.3 Forslag til videre arbeid
 
@@ -336,7 +336,7 @@ Løsningen er holdt innenfor rammene til obligatorisk oppgave: én UDP-port for 
 
 ## 12. Konklusjon
 
-Oppgaven har vært å bygge et UDP-basert chattsystem uten sentral server. Rapporten har vist hvordan meldingsformatet SECP (kapittel 5) knytter sammen alle delene, og hvordan programmet er delt i moduler og tråder (kapittel 6) slik at presence, åpent fellesrom, grupperom og privat chat kan sameksistere. Broadcast brukes der «alle» skal nås, multicast til gruppechat, unicast til invitasjon og lukket samtale. Manuell testing (kapittel 8) og inspisering i Wireshark (kapittel 9) bekrefter at trafikken samsvarer med forventningene. Arbeidet illustrerer både hva UDP er godt egnet til i en enkel LAN-sammenheng, og hvor skjør løsningen er uten autentisering og kryptering — noe som er naturlig neste steg i mer seriøse systemer.
+Oppgaven har vært å bygge et UDP-basert chattsystem uten sentral server. Rapporten har vist hvordan meldingsformatet SECP (kapittel 5) knytter sammen alle delene, og hvordan programmet er delt i moduler og tråder (kapittel 6) slik at presence, åpent fellesrom, grupperom og privat chat kan sameksistere. Broadcast brukes der «alle» skal nås, multicast til gruppechat, unicast til invitasjon og lukket samtale. Manuell testing (kapittel 8) og inspisering i Wireshark (kapittel 9) bekrefter at trafikken samsvarer med forventningene. Arbeidet illustrerer både hva UDP er godt egnet til i en enkel LAN-sammenheng, og hvor skjør løsningen er uten autentisering og kryptering, noe som er naturlig neste steg i mer seriøse systemer.
 
 ---
 
@@ -352,7 +352,7 @@ Jeg har brukt KI-verktøy (for eksempel til formulering og struktur i rapporttek
 
 [2] The Open Group, *The Open Group Base Specifications Issue 7*, POSIX.1-2017, 2018. (Socket-API: `socket`, `bind`, `sendto`, `recvfrom`, `poll`.)
 
-[3] Wireshark Foundation, *Wireshark User’s Guide*, [https://www.wireshark.org/docs/](https://www.wireshark.org/docs/) — brukt til analyse av UDP-pakker og filtre, 2026.
+[3] Wireshark Foundation, *Wireshark User’s Guide*, [https://www.wireshark.org/docs/](https://www.wireshark.org/docs/), brukt til analyse av UDP-pakker og filtre, 2026.
 
 [4] Postel, J., «User Datagram Protocol,» *RFC 768*, Internet Engineering Task Force, 1980. (Grunnleggende UDP-semantikk.)
 
